@@ -2,19 +2,19 @@
 google-cloud-storage==1.13.2
 sh
 # basics
-scipy==1.2.0
+#numpy
+#scipy
+#scipy==1.2.0
 #numpy==1.15.4
-numpy
-sympy==1.1.*
-numexpr==2.6.*
-matplotlib==2.2.*
-seaborn==0.8.*
-pandas==0.23.4
+#numpy
+#sympy==1.1.*
+#numexpr==2.6.*
+#matplotlib==2.2.*
+#seaborn==0.8.*
+#pandas==0.23.4
 # ML libraries
 scikit-learn==0.19.*
-scikit-surprise
+scikit-surprise==1.0.*
 keras==2.0.*
 tensorflow==1.12.0
 #turicreate==5.*
-
-#numpy>=1.11.2
