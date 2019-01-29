@@ -1,4 +1,5 @@
-FROM docker-registry.default.svc:5000/base/jupyter-image:5.5
+#FROM docker-registry.default.svc:5000/base/jupyter-image:5.5
+FROM docker.io/majordomusio/jupyter-container:5.5
 
 # Default user ID
 ENV USER_ID 1001
