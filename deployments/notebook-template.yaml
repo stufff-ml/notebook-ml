@@ -1,0 +1,254 @@
+apiVersion: v1
+kind: Template
+
+metadata:
+  name: notebook-ml
+  annotations:
+    description: Generic ML/AI Jupyter Notebook Server
+    iconClass: icon-python
+    openshift.io/display-name: Generic ML/AI Jupyter Notebook Server
+    openshift.io/provider-display-name: stufff-ml
+    openshift.io/documentation-url: 'https://github.com/stufff-ml/notebook-ml'
+    openshift.io/support-url: 'https://github.com/stufff-ml/notebook-ml/issues'
+    openshift.io/long-description: >-
+      This template defines resources needed to deploy the Jupyter Notebook application,
+      including a build configuration, application deployment configuration, and any
+      other deployment configuration.
+    tags: 'python,jupyter,ML'
+    template.openshift.io/bindable: 'false'
+
+labels:
+  app: notebook-ml
+  template: notebook-ml
+
+message: >-
+  The following service(s) have been created in your project: ${NAME}
+
+  For more information about using this template, including OpenShift
+  considerations, see https://github.com/stufff-ml/notebook-ml.
+
+#
+# The definition of all parameters used in the template.
+#
+parameters:
+  
+  # Deployment configuration
+
+  - description: The name assigned to all of the frontend objects defined in this template.
+    displayName: Name
+    name: NAME
+    required: true
+    value: notebook
+    
+  - description: The exposed hostname that will route to the service, if left blank a value will be defaulted.
+    displayName: Application Hostname
+    name: APPLICATION_HOSTNAME
+
+  # Jupyter configuration
+
+  - description: The notebook password is used to authorize access to the server.
+    displayName: Notebook Password
+    name: JUPYTER_NOTEBOOK_PASSWORD
+    required: true
+    value: secret
+
+  - description: Extra parameters passed to the Jupyter server
+    displayName: Jupyter Extra parameters
+    name: JUPYTER_ARGS
+
+  # Git configuration
+
+  - description: The URL of the repository with the application source code.
+    displayName: Git Repository URL
+    name: SOURCE_REPOSITORY_URL
+    value: ''
+  
+  - description: Set this to a branch name, tag or other ref of your repository if you are not using the default branch.
+    displayName: Git Reference
+    name: SOURCE_REPOSITORY_REF
+    value: ''
+
+  # Container configuration
+
+  - description: Maximum amount of CPU the container can use.
+    displayName: 'CPU Limit (in millicores)'
+    name: CPU_LIMIT
+    required: true
+    value: '1000'
+
+  - description: Maximum amount of memory the container can use.
+    displayName: Memory Limit
+    name: MEMORY_LIMIT
+    required: true
+    value: 2Gi
+    
+  - description: Volume space available for data, e.g. 512Mi, 2Gi
+    displayName: Volume Capacity
+    name: VOLUME_CAPACITY
+    required: true
+    value: 1Gi
+    
+#
+# All objects needed to build and deploy the application.
+#
+
+objects:
+  - apiVersion: v1
+    kind: Secret
+    metadata:
+      name: '${NAME}'
+    stringData:
+      jupyter-notebook-password: '${JUPYTER_NOTEBOOK_PASSWORD}'
+
+  - kind: BuildConfig
+    apiVersion: "v1"
+    metadata:
+      annotations:
+        description: Generic ML/AI Jupyter notebook starter project
+        template.alpha.openshift.io/wait-for-ready: 'true'
+      name: '${NAME}'
+    spec:
+      
+      runPolicy: "Serial" 
+      
+      triggers: 
+        - type: "GitHub"
+          github:
+            secret: "notebook-ml"
+        - type: "Generic"
+          generic:
+            secret: "notebook-ml"
+        - type: "ImageChange"
+      
+      source: 
+        git:
+          uri: "https://github.com/stufff-ml/notebook-ml"
+          ref: "master"
+        contextDir: "assets"
+      
+      strategy:
+        type: Docker
+        dockerStrategy:
+          dockerfilePath: Dockerfile
+          forcePull: true
+      
+      output:
+        to:
+          kind: ImageStreamTag
+          name: '${NAME}:latest'
+          
+  - apiVersion: v1
+    kind: ImageStream
+    metadata:
+      annotations:
+        description: Keeps track of changes in the application image
+      name: '${NAME}'
+  
+  - apiVersion: v1
+    kind: 'DeploymentConfig'
+    metadata:
+      name: '${NAME}'
+      annotations:
+        description: Defines how to deploy the notebook server
+        template.alpha.openshift.io/wait-for-ready: 'true'
+    spec:
+      template: 
+        metadata:
+          labels:
+            name: '${NAME}'
+        spec:
+          containers:
+            - env:                        
+              - name: JUPYTER_NOTEBOOK_PASSWORD
+                valueFrom:
+                  secretKeyRef:
+                    key: jupyter-notebook-password
+                    name: '${NAME}'
+              
+              - name: JUPYTER_ARGS
+                value: '${JUPYTER_ARGS}'
+              
+              - name: JUPYTER_CMD
+                value: 'notebook'
+
+              - name: SOURCE_REPOSITORY_URL
+                value: '${SOURCE_REPOSITORY_URL}'
+
+              - name: SOURCE_REPOSITORY_REF
+                value: '${SOURCE_REPOSITORY_REF}'
+
+              name: '${NAME}'
+              image: '${NAME}'
+              
+              ports:
+                - containerPort: 8080
+                  protocol: 'TCP'
+              
+              resources:
+                limits:
+                  cpu: '${CPU_LIMIT}'
+                  memory: '${MEMORY_LIMIT}'
+                requests:
+                  cpu: 100m
+                  memory: 512Mi
+                  
+              volumeMounts:
+                - mountPath: /opt/app/data
+                  name: '${NAME}-data'
+          volumes:
+            - name: '${NAME}-data'
+              persistentVolumeClaim:
+                claimName: '${NAME}-data'
+      replicas: 1
+      triggers:
+        - type: 'ConfigChange' 
+        - type: 'ImageChange' 
+          imageChangeParams:
+            automatic: true
+            containerNames:
+              - '${NAME}'
+            from:
+              kind: 'ImageStreamTag'
+              name: '${NAME}:latest'
+    
+      strategy: 
+        type: 'Rolling'
+      paused: false 
+      revisionHistoryLimit: 2 
+      minReadySeconds:
+  
+  - apiVersion: v1
+    kind: Service
+    metadata:
+      annotations:
+        description: Exposes and load balances the application pods
+      name: '${NAME}'
+    spec:
+      ports:
+        - name: web
+          port: 8080
+          targetPort: 8080
+      selector:
+        name: '${NAME}'
+  
+  - apiVersion: v1
+    kind: Route
+    metadata:
+      name: '${NAME}'
+    spec:
+      host: '${APPLICATION_HOSTNAME}'
+      to:
+        kind: Service
+        name: '${NAME}'
+        
+  - apiVersion: v1
+    kind: PersistentVolumeClaim
+    metadata:
+      name: '${NAME}-data'
+    spec:
+      accessModes:
+        - ReadWriteOnce
+      resources:
+        requests:
+          storage: '${VOLUME_CAPACITY}'
+  
