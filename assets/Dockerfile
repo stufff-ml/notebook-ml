@@ -28,11 +28,13 @@ LABEL name="$NAME" \
 # Jupyter environment
 ENV JUPYTER_CONFIG_DIR=$APP_ROOT/config \
     JUPYTER_DATA_DIR=$APP_ROOT/data \
-    JUPYTER_EXTRA_PKGS="blas lapack" \
+    JUPYTER_EXTRA_PKGS="" \
     DISABLE_JUPYTER_EXTRA_PKGS="false" \
     JUPYTER_ARGS="" \
     JUPYTER_CMD="notebook" \
     PIP_ARGS=""
+
+#JUPYTER_EXTRA_PKGS="blas lapack" \
 
 # The default location
 EXPOSE 8080

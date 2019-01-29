@@ -2,7 +2,7 @@
 google-cloud-storage==1.13.2
 sh
 # basics
-numpy
+numpy==1.11.*
 scipy
 #scipy
 #scipy==1.2.0
